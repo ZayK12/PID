@@ -46,7 +46,8 @@ bool RemoteControlCodeEnabled = true;
 #pragma endregion VEXcode Generated Robot Configuration
 competition Competition;
 int Brain_precision = 0, Console_precision = 0;
-int TV = 500;
+
+int TV = 0/(3.14159 * 104.775) * 360;
 /*
 float MoveLateral(float x)
 {
@@ -57,6 +58,8 @@ float MoveLateral(float x)
 }
 */
 int turninput = 0;
+
+int actualturning = 0;
 
 bool swtch = true; // switch to toggle while loop
 bool swtch2 = true; // debug switch
@@ -77,6 +80,10 @@ double turnKp = 0.3; // Constant for Proportion
 double turnKi = 0.000; // Constant for Integral
 double turnKd = 0.000;// Constant for Derivative
 
+//Turning Tuning
+double actualturningKp = 0;
+double actualturningKi = 0;
+double actualturningKd = 0;
 
 
 #pragma endregion Tuning
@@ -88,14 +95,17 @@ float leftError = .1; //error is the distance left from the current position to 
 float leftIntegral = 0;
 float leftDerivative = 0;
 float leftPrev_error = 0;
+
 float rightError = .1;
 float rightIntegral = 0;
 float rightDerivative = 0;
 float rightPrev_error = 0;
+
 float prev_error = 0; // This is just the previous error before the next loop
 float integral = 0; // 
 float derivative = 0; // error - prev_error : 
 float averagerot = 0; //
+
 event getVar = event();
 event reset = event();
 float turnV = 0;
@@ -103,9 +113,16 @@ float turnError = .1; //error is the distance left from the current position to 
 float turnIntegral = 0;
 float turnDerivative = 0;
 float turnPrev_error = 0;
+
+
 float AVGRMP;
 float AVGLMP;
 bool AC = false;
+float actualturningV = 0;
+float actualturningIntegral = 0;
+float actualturningDerivative = 0;
+float actualturningPrev_error = 0;
+float actualturningError = 0;
 #pragma endregion Declarables 
 
 
@@ -175,6 +192,18 @@ void onevent_getVar_2()
   turnIntegral += turnError;
   turnPrev_error = turnError;
   
+  
+}
+
+void onevent_getVar_3()
+{
+  (actualturning != 0) ? actualturning = (averagerot-actualturning): actualturningError = 0;
+  if (actualturningError == actualturningPrev_error)
+  {
+    actualturningIntegral = 0;
+  }
+  actualturningIntegral += turnError;
+  turnPrev_error = turnError;
 
 }
 
@@ -211,7 +240,17 @@ void whenstarted1()
   } 
 
 }
-
+int whenStarted3()
+{
+  while (swtch2)
+  {
+    actualturningV = actualturningKp*actualturningError +actualturningKi*actualturningIntegral + actualturningKd * (actualturningError - actualturningPrev_error);
+    FrontRight.spin(forward, actualturningV, voltageUnits::volt);
+    FrontLeft.spin(reverse, actualturningV, voltageUnits::volt);
+    BackRight.spin(forward, actualturningV, voltageUnits::volt);
+    BackLeft.spin(reverse, actualturningV, voltageUnits::volt);
+  }
+}
 int whenStarted2()
 {
   while (swtch2)
@@ -226,20 +265,13 @@ int whenStarted2()
   }
   return 0;
 
-
-
 }
 
 
 
 int onauton_autonomous_0()
 {
-  wait(1, sec);
-  AC = false;
-  waitUntil(AC = true);
-  reset1();
-  TV = 300;
-  return 0;
+    wait(1,msec);
 }
 
 
@@ -256,6 +288,7 @@ int main() {
   getVar(onevent_getVar_0);
   getVar(onevent_getVar_1);
   getVar(onevent_getVar_2);
+  getVar(onevent_getVar_3);
   reset(reset1);
   vex::competition::bStopTasksBetweenModes = false;
   Competition.drivercontrol(VEXcode_driver_task);
@@ -263,6 +296,6 @@ int main() {
   swtch = true;
   swtch2 = true;
   vex::task ws1(whenStarted2);
+  vex::task ws1(whenStarted3);
   whenstarted1();
-
 }
