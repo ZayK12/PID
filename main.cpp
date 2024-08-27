@@ -123,6 +123,7 @@ float actualturningIntegral = 0;
 float actualturningDerivative = 0;
 float actualturningPrev_error = 0;
 float actualturningError = 0;
+float turningrot = 0;
 #pragma endregion Declarables 
 
 
@@ -145,7 +146,6 @@ void reset1()
   BackRight.setPosition(0, degrees);
   FrontLeft.setPosition(0, degrees);
   BackLeft.setPosition(0, degrees);
-  
 }
 #pragma region SIDPID
 
@@ -197,6 +197,7 @@ void onevent_getVar_2()
 
 void onevent_getVar_3()
 {
+  turningrot = abs(FrontRight.position(degrees)) + abs(BackRight.position(degrees));
   (actualturning != 0) ? actualturning = (averagerot-actualturning): actualturningError = 0;
   if (actualturningError == actualturningPrev_error)
   {
@@ -209,7 +210,7 @@ void onevent_getVar_3()
 
 
 void whenstarted1()
-{ 
+{
   while (swtch) 
   {
     turnV = turnKp*turnError + turnKi*turnIntegral + turnKd * (turnError - turnPrev_error);
