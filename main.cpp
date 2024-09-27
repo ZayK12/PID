@@ -47,22 +47,14 @@ bool RemoteControlCodeEnabled = true;
 competition Competition;
 int Brain_precision = 0, Console_precision = 0;
 
-int TV = 0/(3.14159 * 104.775) * 360; // Targeted Value
+float TV = 0/(3.14159 * 104.775) * 360; // Targeted Value
 // The calculation is used to convert mm to degrees.
-/*
-float MoveLateral(float x)
-{
-  float G = x/(3.14159 * 104.775) * 360;
-  Brain.Screen.print(G);
-  TV = G;
-  return 0;
-}
-*/
+
+float turninput = 0;
 // Tank Drive turning X-Drive Side to side movement.
-int turninput = 0;
 
 //X-Drive Turning, may work with mechan wheels (Untested)
-int actualturning = 0;
+float actualturning = 0;
 
 //swtch toggles the PID calculations and spinning the motors
 bool swtch = true; // switch to toggle while loop
@@ -159,6 +151,11 @@ void VEXcode_driver_task() {
 }
 
 //Reset1 sets all motor rotation sensors to 0 making the PID think that it is at its destination
+float moveLong(float input)
+{
+  float TV = input/(3.14159 * 104.775) * 360; // Targeted Value
+}
+
 void reset1()
 {
   FrontRight.setPosition(0, degrees);
@@ -229,7 +226,7 @@ void onevent_getVar_3()
 
 }
 
-
+//Final Calculation 
 void whenstarted1()
 {
   while (swtch) 
@@ -288,12 +285,42 @@ int whenStarted2()
   return 0;
 
 }
-
+int whenStarted4()
+{
+  while (swtch2)
+  {
+    if ((leftError < 1 && rightError < 1 && TV < 1) || (turninput != 0 && turnError < 1))
+      swtch = false;
+      TV = 0;
+      turninput = 0;
+      actualturning = 0;
+      actualturningV = 0;
+      actualturningIntegral = 0;
+      actualturningDerivative = 0;
+      actualturningPrev_error = 0;
+      actualturningError = 0;
+      turningrot = 0;
+      leftError = 0;
+      leftIntegral = 0;
+      leftDerivative = 0;
+      leftPrev_error = 0;
+      rightError = 0;
+      rightIntegral = 0;
+      rightDerivative = 0;
+      rightPrev_error = 0;
+      swtch == true;
+  }
+}
 
 
 int onauton_autonomous_0()
 {
-    wait(1,msec);
+  waitUntil(!swtch);
+  waitUntil(swtch);
+  moveLong(50);
+  waitUntil(!swtch);
+  waitUntil(swtch);
+  
 }
 
 
