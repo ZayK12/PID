@@ -123,7 +123,9 @@ double AVGLMP;
 
 //Unused all clear boolean for resettting
 bool AC = false;
-
+//Variables to track what movement method is in use
+bool longLat = false;
+bool Turn = false;
 
 //actual turning is for x-drive turning as turn causes side to side movement
 double actualturningV = 0.0; //Voltage to give motors
@@ -153,9 +155,15 @@ void VEXcode_driver_task() {
 double moveLong(double input)
 {
   double TV = input/(3.14159 * 104.775) * 360; // Targeted Value
+  longLat = true;
   return TV;
 }
-
+double turn(double input)
+{
+  turninput = input;
+  Turn = true;
+  return 0;
+}
 #pragma region SIDPID
 
 
@@ -284,7 +292,7 @@ void onevent_getVar_5()
 void reset()
 {
 
-  waitUntil(30 > leftError);
+  waitUntil((30 > leftError  && rightError < 30 && longLat ) || (turninput != 0.0 && turnError < 1 && Turn) );
   //if ((leftError < 30)) //|| (turninput != 0.0 && turnError < 1) 
   Controller1.Screen.print("AAAAA");
   swtch = false;
@@ -307,6 +315,8 @@ void reset()
   rightDerivative = 0.0;
   rightPrev_error = 0.0;
   Brain.Screen.print("MONKEY!");
+  longLat = false;
+  Turn = false;
   swtch = true;
   AC == true;
 }
@@ -324,7 +334,10 @@ int onauton_autonomous_0()
   reset12.broadcast();
   swtch = true;
   waitUntil(AC);
-  TV = moveLong(-2500.0);
+  TV = moveLong(500.0);
+  reset12.broadcast();
+  waitUntil(AC);
+  turninput = 90;
   return 0;
 }
 
