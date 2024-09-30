@@ -106,7 +106,7 @@ double averagerot = 0.0; //
 //getVar event is used to multithread the code
 event getVar = event();
 //reset event is ued to reset all PID calculations.
-event reset = event();
+event reset12 = event();
 
 //PID variables attached to the turninput variable
 double turnV = 0.0;
@@ -245,6 +245,7 @@ void onevent_getVar_4()
     {
       turnV = 10.0;
     }
+
     leftside.spin(forward, leftlateralMotorPower + turnV, voltageUnits::volt);
     rightside.spin(forward, rightlateralMotorPower - turnV, voltageUnits::volt);
     //speed = Kp*error + Ki*integral + Kd * derivative;
@@ -270,9 +271,8 @@ void onevent_getVar_5()
   while (swtch2)
   {
     getVar.broadcast();
-    Controller1.Screen.clearScreen();
+    //Controller1.Screen.clearScreen();
     Controller1.Screen.setCursor(1,1);
-    Controller1.Screen.print(rightError);
     //printf(printToConsole_numberFormat(), static_cast<double>(turnError));
     //Controller1.Screen.print(" ");
     //Controller1.Screen.print(BackRight.position(degrees));
@@ -281,34 +281,34 @@ void onevent_getVar_5()
 }
 
 
-int whenStarted4()
+void reset()
 {
-  while (swtch)
-  {
-    if ((leftError < 1 && rightError < 1 && TV != 0.0) || (turninput != 0.0 && turnError < 1))
-      swtch = false;
-      leftside.stop();
-      rightside.stop();
-      TV = 0.0;
-      turninput = 0.0;
-      actualturning = 0.0;
-      actualturningV = 0.0;
-      actualturningIntegral = 0.0;
-      actualturningDerivative = 0.0;
-      actualturningPrev_error = 0.0;
-      actualturningError = 0.0;
-      leftError = 0.0;
-      leftIntegral = 0.0;
-      leftDerivative = 0.0;
-      leftPrev_error = 0.0;
-      rightError = 0.0;
-      rightIntegral = 0.0;
-      rightDerivative = 0.0;
-      rightPrev_error = 0.0;
-      swtch = true;
-      
-  }
-  return 0;
+
+  waitUntil(30 > leftError);
+  //if ((leftError < 30)) //|| (turninput != 0.0 && turnError < 1) 
+  Controller1.Screen.print("AAAAA");
+  swtch = false;
+  leftside.stop();
+  rightside.stop();
+  TV = 0.0;
+  turninput = 0.0;
+  actualturning = 0.0;
+  actualturningV = 0.0;
+  actualturningIntegral = 0.0;
+  actualturningDerivative = 0.0;
+  actualturningPrev_error = 0.0;
+  actualturningError = 0.0;
+  leftError = 0.0;
+  leftIntegral = 0.0;
+  leftDerivative = 0.0;
+  leftPrev_error = 0.0;
+  rightError = 0.0;
+  rightIntegral = 0.0;
+  rightDerivative = 0.0;
+  rightPrev_error = 0.0;
+  Brain.Screen.print("MONKEY!");
+  swtch = true;
+  AC == true;
 }
 
 int onauton_autonomous_0()
@@ -317,11 +317,14 @@ int onauton_autonomous_0()
   FrontRight.setPosition(0, degrees);
   BackLeft.setPosition(0, degrees);
   BackRight.setPosition(0, degrees);
-  TV = moveLong(-500.0);
+  TV = moveLong(500.0);
   swtch = true;
   getVar.broadcast();
   Brain.Screen.print("Running!");
+  reset12.broadcast();
   swtch = true;
+  waitUntil(AC);
+  TV = moveLong(-2500.0);
   return 0;
 }
 
@@ -346,6 +349,7 @@ int main() {
   getVar(onevent_getVar_3);
   getVar(onevent_getVar_4);
   getVar(onevent_getVar_5);
+  reset12(reset);
   vex::competition::bStopTasksBetweenModes = false;
   Competition.drivercontrol(VEXcode_driver_task);
   Competition.autonomous(VEXcode_auton_task);
