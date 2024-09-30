@@ -10,7 +10,7 @@
 #include "vex.h"
 
 using namespace vex;
-
+#include <math.h>
 // A global instance of vex::brain used for printing to the V5 brain screen
 vex::brain       Brain;
 
@@ -27,13 +27,13 @@ vex::brain       Brain;
 
 // Robot configuration code.
 controller Controller1 = controller(primary);
-motor FrontLeft = motor(PORT20, ratio18_1, false);
+motor FrontLeft = motor(PORT19, ratio18_1, false);
 
-motor BackLeft = motor(PORT10, ratio18_1, false);
+motor BackLeft = motor(PORT18, ratio18_1, true);
 
-motor FrontRight = motor(PORT11, ratio18_1, true);
+motor FrontRight = motor(PORT11, ratio18_1, false);
 
-motor BackRight = motor(PORT2, ratio18_1, true);
+motor BackRight = motor(PORT12, ratio18_1, true);
 
 inertial Inertial4 = inertial(PORT4);
 
@@ -47,17 +47,17 @@ bool RemoteControlCodeEnabled = true;
 competition Competition;
 int Brain_precision = 0, Console_precision = 0;
 
-float TV = 0/(3.14159 * 104.775) * 360; // Targeted Value
+double TV = -500.0/(3.14159 * 104.775) * 360; // Targeted Value
 // The calculation is used to convert mm to degrees.
 
-float turninput = 0;
+double turninput = 0.0;
 // Tank Drive turning X-Drive Side to side movement.
 
 //X-Drive Turning, may work with mechan wheels (Untested)
-float actualturning = 0;
+double actualturning = 0.0;
 
 //swtch toggles the PID calculations and spinning the motors
-bool swtch = true; // switch to toggle while loop
+bool swtch = false; // switch to toggle while loop
 //swtch2 toggles updating all PID variables
 bool swtch2 = true; // debug switch
 
@@ -67,7 +67,7 @@ bool swtch2 = true; // debug switch
 
 //Lateral Tuning
 
-double Kp = 0.275; // Constant for Proportion
+double Kp = 0.375; // Constant for Proportion
 double Ki = 0.0001; // Constant for Integral
 double Kd = 0.0001;// Constant for Derivative
 
@@ -78,9 +78,9 @@ double turnKi = 0.000; // Constant for Integral
 double turnKd = 0.000;// Constant for Derivative
 
 //Turning Tuning
-double actualturningKp = 0;
-double actualturningKi = 0;
-double actualturningKd = 0;
+double actualturningKp = 0.0;
+double actualturningKi = 0.0;
+double actualturningKd = 0.0;
 
 
 #pragma endregion Tuning
@@ -88,20 +88,20 @@ double actualturningKd = 0;
 
 
 #pragma region Declarables
-float leftError = .1; //error is the distance left from the current position to the TV
-float leftIntegral = 0;
-float leftDerivative = 0;
-float leftPrev_error = 0;
+double leftError = .1; //error is the distance left from the current position to the TV
+double leftIntegral = 0.0;
+double leftDerivative = 0.0;
+double leftPrev_error = 0.0;
 
-float rightError = .1;
-float rightIntegral = 0;
-float rightDerivative = 0;
-float rightPrev_error = 0;
+double rightError = .1;
+double rightIntegral = 0.0;
+double rightDerivative = 0.0;
+double rightPrev_error = 0.0;
 
-float prev_error = 0; // This is just the previous error before the next loop
-float integral = 0; // 
-float derivative = 0; // error - prev_error : 
-float averagerot = 0; //
+double prev_error = 0.0; // This is just the previous error before the next loop
+double integral = 0.0; // 
+double derivative = 0.0; // error - prev_error : 
+double averagerot = 0.0; //
 
 //getVar event is used to multithread the code
 event getVar = event();
@@ -109,29 +109,29 @@ event getVar = event();
 event reset = event();
 
 //PID variables attached to the turninput variable
-float turnV = 0;
-float turnError = .1; //error is the distance left from the current position to the TV
-float turnIntegral = 0;
-float turnDerivative = 0;
-float turnPrev_error = 0;
+double turnV = 0.0;
+double turnError = .1; //error is the distance left from the current position to the TV
+double turnIntegral = 0.0;
+double turnDerivative = 0.0;
+double turnPrev_error = 0.0;
 
 //Average Right Motor Position
-float AVGRMP;
+double AVGRMP;
 
 //Average Left Motor Position
-float AVGLMP;
+double AVGLMP;
 
 //Unused all clear boolean for resettting
 bool AC = false;
 
 
 //actual turning is for x-drive turning as turn causes side to side movement
-float actualturningV = 0; //Voltage to give motors
-float actualturningIntegral = 0;
-float actualturningDerivative = 0;
-float actualturningPrev_error = 0;
-float actualturningError = 0;
-float turningrot = 0;
+double actualturningV = 0.0; //Voltage to give motors
+double actualturningIntegral = 0.0;
+double actualturningDerivative = 0.0;
+double actualturningPrev_error = 0.0;
+double actualturningError = 0.0;
+double turningrot = 0.0;
 
 
 #pragma endregion Declarables 
@@ -150,19 +150,12 @@ void VEXcode_driver_task() {
   return;
 }
 
-//Reset1 sets all motor rotation sensors to 0 making the PID think that it is at its destination
-float moveLong(float input)
+double moveLong(double input)
 {
-  float TV = input/(3.14159 * 104.775) * 360; // Targeted Value
+  double TV = input/(3.14159 * 104.775) * 360; // Targeted Value
+  return TV;
 }
 
-void reset1()
-{
-  FrontRight.setPosition(0, degrees);
-  BackRight.setPosition(0, degrees);
-  FrontLeft.setPosition(0, degrees);
-  BackLeft.setPosition(0, degrees);
-}
 #pragma region SIDPID
 
 
@@ -170,10 +163,10 @@ void reset1()
 void onevent_getVar_0()
 {
   AVGLMP = FrontLeft.position(degrees) + BackLeft.position(degrees)/2;
-  (TV != 0) ? leftError = TV - AVGLMP : leftError = 0;
+  (TV != 0.0) ? leftError = TV - AVGLMP : leftError = 0.0;
   if (leftError == leftPrev_error)
   {
-    leftIntegral = 0;
+    leftIntegral = 0.0;
   }
   leftIntegral += leftError;
   leftPrev_error = leftError;
@@ -184,10 +177,10 @@ void onevent_getVar_0()
 void onevent_getVar_1()
 {
   AVGRMP = FrontRight.position(degrees) + BackRight.position(degrees)/2;
-  (TV != 0) ? rightError = TV - AVGRMP : rightError = 0;
+  (TV != 0.0) ? rightError = TV - AVGRMP : rightError = 0.0;
   if (rightError == rightPrev_error)
   {
-    rightIntegral = 0;
+    rightIntegral = 0.0;
     AC = true;
   }
   rightIntegral += rightError;
@@ -200,10 +193,10 @@ void onevent_getVar_1()
 void onevent_getVar_2()
 {
   averagerot = (AVGRMP + AVGLMP/2);
-  (turninput != 0) ? turnError = (averagerot-turninput): turnError = 0;
+  (turninput != 0.0) ? turnError = (averagerot-turninput): turnError = 0.0;
   if (turnError == turnPrev_error)
   {
-    turnIntegral = 0;
+    turnIntegral = 0.0;
     //AC = true;
   } 
   turnIntegral += turnError;
@@ -215,11 +208,11 @@ void onevent_getVar_2()
 //Calculation used for X-Drive turning.
 void onevent_getVar_3()
 {
-  turningrot = abs(FrontRight.position(degrees)) + abs(BackRight.position(degrees));
-  (actualturning != 0) ? actualturning = (averagerot-actualturning): actualturningError = 0;
+  turningrot = fabs(FrontRight.position(degrees)) +fabs(BackRight.position(degrees));
+  (actualturning != 0.0) ? actualturning = (averagerot-actualturning): actualturningError = 0.0;
   if (actualturningError == actualturningPrev_error)
   {
-    actualturningIntegral = 0;
+    actualturningIntegral = 0.0;
   }
   actualturningIntegral += actualturningError;
   actualturningPrev_error = actualturningError;
@@ -227,30 +220,30 @@ void onevent_getVar_3()
 }
 
 //Final Calculation 
-void whenstarted1()
+void onevent_getVar_4()
 {
   while (swtch) 
   {
     turnV = turnKp*turnError + turnKi*turnIntegral + turnKd * (turnError - turnPrev_error);
-    float rightlateralMotorPower = ((Kp*rightError + Ki*rightIntegral + Kd * (rightError - rightPrev_error))/12);
-    float leftlateralMotorPower = ((Kp*leftError + Ki*leftIntegral + Kd * (leftError - leftPrev_error))/12);
+    double rightlateralMotorPower = ((Kp*rightError + Ki*rightIntegral + Kd * (rightError - rightPrev_error))/12);
+    double leftlateralMotorPower = ((Kp*leftError + Ki*leftIntegral + Kd * (leftError - leftPrev_error))/12);
     
-    if (rightlateralMotorPower > float(10))
+    if (rightlateralMotorPower > double(10))
     
     {
-      rightlateralMotorPower = 10;
+      rightlateralMotorPower = 10.0;
       //return 0;
     }
 
 
-    if (leftlateralMotorPower > float(10))
+    if (leftlateralMotorPower > double(10))
     {
-      leftlateralMotorPower = 10;
+      leftlateralMotorPower = 10.0;
       //return 0;
     }
-    if (turnV > float(10))
+    if (turnV > double(10))
     {
-      turnV = 10;
+      turnV = 10.0;
     }
     leftside.spin(forward, leftlateralMotorPower + turnV, voltageUnits::volt);
     rightside.spin(forward, rightlateralMotorPower - turnV, voltageUnits::volt);
@@ -259,7 +252,7 @@ void whenstarted1()
   } 
 
 }
-int whenStarted3()
+int whenStarted2()
 {
   while (swtch)
   {
@@ -269,8 +262,10 @@ int whenStarted3()
     BackRight.spin(forward, actualturningV, voltageUnits::volt);
     BackLeft.spin(reverse, actualturningV, voltageUnits::volt);
   }
+  return 0;
 }
-int whenStarted2()
+
+void onevent_getVar_5()
 {
   while (swtch2)
   {
@@ -278,49 +273,56 @@ int whenStarted2()
     Controller1.Screen.clearScreen();
     Controller1.Screen.setCursor(1,1);
     Controller1.Screen.print(rightError);
-    //printf(printToConsole_numberFormat(), static_cast<float>(turnError));
+    //printf(printToConsole_numberFormat(), static_cast<double>(turnError));
     //Controller1.Screen.print(" ");
     //Controller1.Screen.print(BackRight.position(degrees));
   }
-  return 0;
 
 }
+
+
 int whenStarted4()
 {
-  while (swtch2)
+  while (swtch)
   {
-    if ((leftError < 1 && rightError < 1 && TV < 1) || (turninput != 0 && turnError < 1))
+    if ((leftError < 1 && rightError < 1 && TV != 0.0) || (turninput != 0.0 && turnError < 1))
       swtch = false;
-      TV = 0;
-      turninput = 0;
-      actualturning = 0;
-      actualturningV = 0;
-      actualturningIntegral = 0;
-      actualturningDerivative = 0;
-      actualturningPrev_error = 0;
-      actualturningError = 0;
-      turningrot = 0;
-      leftError = 0;
-      leftIntegral = 0;
-      leftDerivative = 0;
-      leftPrev_error = 0;
-      rightError = 0;
-      rightIntegral = 0;
-      rightDerivative = 0;
-      rightPrev_error = 0;
-      swtch == true;
+      leftside.stop();
+      rightside.stop();
+      TV = 0.0;
+      turninput = 0.0;
+      actualturning = 0.0;
+      actualturningV = 0.0;
+      actualturningIntegral = 0.0;
+      actualturningDerivative = 0.0;
+      actualturningPrev_error = 0.0;
+      actualturningError = 0.0;
+      leftError = 0.0;
+      leftIntegral = 0.0;
+      leftDerivative = 0.0;
+      leftPrev_error = 0.0;
+      rightError = 0.0;
+      rightIntegral = 0.0;
+      rightDerivative = 0.0;
+      rightPrev_error = 0.0;
+      swtch = true;
+      
   }
+  return 0;
 }
-
 
 int onauton_autonomous_0()
 {
-  waitUntil(!swtch);
-  waitUntil(swtch);
-  moveLong(50);
-  waitUntil(!swtch);
-  waitUntil(swtch);
-  
+  FrontLeft.setPosition(0, degrees);
+  FrontRight.setPosition(0, degrees);
+  BackLeft.setPosition(0, degrees);
+  BackRight.setPosition(0, degrees);
+  TV = moveLong(-500.0);
+  swtch = true;
+  getVar.broadcast();
+  Brain.Screen.print("Running!");
+  swtch = true;
+  return 0;
 }
 
 
@@ -334,17 +336,22 @@ void VEXcode_auton_task() {
 
 }
 int main() {
+  FrontLeft.setPosition(0, degrees);
+  FrontRight.setPosition(0, degrees);
+  BackLeft.setPosition(0, degrees);
+  BackRight.setPosition(0, degrees);
   getVar(onevent_getVar_0);
   getVar(onevent_getVar_1);
   getVar(onevent_getVar_2);
   getVar(onevent_getVar_3);
-  reset(reset1);
+  getVar(onevent_getVar_4);
+  getVar(onevent_getVar_5);
   vex::competition::bStopTasksBetweenModes = false;
   Competition.drivercontrol(VEXcode_driver_task);
   Competition.autonomous(VEXcode_auton_task);
-  swtch = true;
+  swtch = false;
   swtch2 = true;
   vex::task ws1(whenStarted2);
-  vex::task ws1(whenStarted3);
-  whenstarted1();
+
+
 }
