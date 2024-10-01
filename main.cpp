@@ -288,16 +288,19 @@ void onevent_getVar_5()
 
 }
 
-
+// Event used to figure out when the PID has reached its destination
 void reset()
 {
-
+  // Wait statement that waits for the error to be within a certian number before proceeding
   waitUntil((30 > leftError  && rightError < 30 && longLat ) || (turninput != 0.0 && turnError < 1 && Turn) );
-  //if ((leftError < 30)) //|| (turninput != 0.0 && turnError < 1) 
+  //Lets the driver know that the reset has begun
   Controller1.Screen.print("AAAAA");
+  // disables all PID calculation
   swtch = false;
+  //stops all motors to prevent any interference
   leftside.stop();
   rightside.stop();
+  // Zeroing all PID values
   TV = 0.0;
   turninput = 0.0;
   actualturning = 0.0;
@@ -314,23 +317,32 @@ void reset()
   rightIntegral = 0.0;
   rightDerivative = 0.0;
   rightPrev_error = 0.0;
+  // Lets programmer know that the reset has ended
   Brain.Screen.print("MONKEY!");
+  // Resets what movement the PID is doing and gives the all clear for the next PID movement to begin
   longLat = false;
   Turn = false;
   swtch = true;
   AC == true;
 }
 
+
+// Main auton code
+
 int onauton_autonomous_0()
 {
+  // Zeros the motors.
   FrontLeft.setPosition(0, degrees);
   FrontRight.setPosition(0, degrees);
   BackLeft.setPosition(0, degrees);
   BackRight.setPosition(0, degrees);
+  // First movement
   TV = moveLong(500.0);
+  // Redundancy to make sure there is no interference
   swtch = true;
   getVar.broadcast();
   Brain.Screen.print("Running!");
+  // broadcasting the reset
   reset12.broadcast();
   swtch = true;
   waitUntil(AC);
