@@ -27,13 +27,14 @@ vex::brain       Brain;
 
 // Robot configuration code.
 controller Controller1 = controller(primary);
-motor FrontLeft = motor(PORT19, ratio18_1, false);
+motor BackRight = motor(PORT11, ratio18_1, true);
 
-motor BackLeft = motor(PORT18, ratio18_1, true);
+motor FrontRight = motor(PORT12, ratio18_1, false);
 
-motor FrontRight = motor(PORT11, ratio18_1, false);
+motor BackLeft = motor(PORT19, ratio18_1, false);
 
-motor BackRight = motor(PORT12, ratio18_1, true);
+motor FrontLeft = motor(PORT18, ratio18_1, true);
+
 
 inertial Inertial4 = inertial(PORT4);
 
@@ -78,9 +79,9 @@ double turnKi = 0.000; // Constant for Integral
 double turnKd = 0.000;// Constant for Derivative
 
 //Turning Tuning
-double actualturningKp = 0.0;
-double actualturningKi = 0.0;
-double actualturningKd = 0.0;
+double actualturningKp = 0.0; // Constant for Proportion
+double actualturningKi = 0.0; // Constant for Integral
+double actualturningKd = 0.0; // Constant for Derivative
 
 
 #pragma endregion Tuning
@@ -121,7 +122,7 @@ double AVGRMP;
 //Average Left Motor Position
 double AVGLMP;
 
-//Unused all clear boolean for resettting
+// All clear boolean that is used to let the code knom that its good to run the next movement
 bool AC = false;
 //Variables to track what movement method is in use
 bool longLat = false;
@@ -152,16 +153,23 @@ void VEXcode_driver_task() {
   return;
 }
 
+// Funtion that sets the value and moves the robot along its longitundinal axis
 double moveLong(double input)
 {
   double TV = input/(3.14159 * 104.775) * 360; // Targeted Value
   longLat = true;
+  //Enables the math loop
+  swtch = true;
   return TV;
 }
+
+// the function that sets the distance to x drive side to side movement 
 double turn(double input)
 {
   turninput = input;
   Turn = true;
+  // Enables the math loop
+  swtch = true;
   return 0;
 }
 #pragma region SIDPID
@@ -216,7 +224,7 @@ void onevent_getVar_2()
 //Calculation used for X-Drive turning.
 void onevent_getVar_3()
 {
-  turningrot = fabs(FrontRight.position(degrees)) +fabs(BackRight.position(degrees));
+  turningrot = fabs(FrontRight.position(degrees)) + fabs(BackRight.position(degrees));
   (actualturning != 0.0) ? actualturning = (averagerot-actualturning): actualturningError = 0.0;
   if (actualturningError == actualturningPrev_error)
   {
@@ -240,14 +248,12 @@ void onevent_getVar_4()
     
     {
       rightlateralMotorPower = 10.0;
-      //return 0;
     }
 
 
     if (leftlateralMotorPower > double(10))
     {
       leftlateralMotorPower = 10.0;
-      //return 0;
     }
     if (turnV > double(10))
     {
@@ -256,8 +262,6 @@ void onevent_getVar_4()
 
     leftside.spin(forward, leftlateralMotorPower + turnV, voltageUnits::volt);
     rightside.spin(forward, rightlateralMotorPower - turnV, voltageUnits::volt);
-    //speed = Kp*error + Ki*integral + Kd * derivative;
-    //return 0;
   } 
 
 }
@@ -279,11 +283,11 @@ void onevent_getVar_5()
   while (swtch2)
   {
     getVar.broadcast();
-    //Controller1.Screen.clearScreen();
+    Controller1.Screen.clearScreen();
     Controller1.Screen.setCursor(1,1);
     //printf(printToConsole_numberFormat(), static_cast<double>(turnError));
-    //Controller1.Screen.print(" ");
-    //Controller1.Screen.print(BackRight.position(degrees));
+    Controller1.Screen.print(" ");
+    Controller1.Screen.print(turningrot);
   }
 
 }
@@ -291,15 +295,19 @@ void onevent_getVar_5()
 // Event used to figure out when the PID has reached its destination
 void reset()
 {
-  // Wait statement that waits for the error to be within a certian number before proceeding
+  //Uses a wait statement that waits for the error (dependant upon what movement is occurring) within a small enough margin before resetting.
   waitUntil((30 > leftError  && rightError < 30 && longLat ) || (turninput != 0.0 && turnError < 1 && Turn) );
+
   //Lets the driver know that the reset has begun
   Controller1.Screen.print("AAAAA");
-  // disables all PID calculation
+
+  //Disables the math loop so that the TV can be properly initalized
   swtch = false;
+
   //stops all motors to prevent any interference
   leftside.stop();
   rightside.stop();
+
   // Zeroing all PID values
   TV = 0.0;
   turninput = 0.0;
@@ -317,13 +325,16 @@ void reset()
   rightIntegral = 0.0;
   rightDerivative = 0.0;
   rightPrev_error = 0.0;
-  // Lets programmer know that the reset has ended
-  Brain.Screen.print("MONKEY!");
+
+
   // Resets what movement the PID is doing and gives the all clear for the next PID movement to begin
   longLat = false;
   Turn = false;
-  swtch = true;
-  AC == true;
+  
+  // Lets programmer know that the reset has ended
+  Brain.Screen.print("MONKEY!");
+  // Lets the code know that the reset has ended
+  AC = true;
 }
 
 
@@ -331,25 +342,37 @@ void reset()
 
 int onauton_autonomous_0()
 {
-  // Zeros the motors.
+  // Zeros the motors. To make sure they're at their starting position
   FrontLeft.setPosition(0, degrees);
   FrontRight.setPosition(0, degrees);
   BackLeft.setPosition(0, degrees);
   BackRight.setPosition(0, degrees);
-  // First movement
-  TV = moveLong(500.0);
+
+  // Initial instruction: move 500mm forward
+  TV = moveLong(200.0);
+
   // Redundancy to make sure there is no interference
-  swtch = true;
-  getVar.broadcast();
-  Brain.Screen.print("Running!");
+  // MAKE SURE: This code NEEDS has to be after the intital instruction, Otherwise the target value will not initalize properly
+  swtch = true; // Enabling math loop switch.
+  getVar.broadcast(); //Starts the broadcast loop. details on page: (insert page here)
+  Brain.Screen.print("Running!"); //Debugging: allows me to know that the auton code has ran.
+
   // broadcasting the reset
+  //Needs to be placed after initial instruction, otherwise will reset the auton code instantly
   reset12.broadcast();
+
+  // Redundancy to make sure there that the math loop switch has properly turned on
   swtch = true;
+
+  //This line below waits for function "reset" to finish through the use of an all clear boolean (true or false)
   waitUntil(AC);
-  TV = moveLong(500.0);
+  TV = moveLong(-50.0);
   reset12.broadcast();
+
   waitUntil(AC);
-  turninput = 90;
+  //turninput = 90;
+
+  
   return 0;
 }
 
