@@ -77,9 +77,9 @@ double Kd = 0.0001;// Constant for Derivative
 
 //Turn Tuning
 
-double turnKp = 0.3; // Constant for Proportion
-double turnKi = 0.000; // Constant for Integral
-double turnKd = 0.000;// Constant for Derivative
+double turnKp = 0.375; // Constant for Proportion
+double turnKi = 0.0001; // Constant for Integral
+double turnKd = 0.0001;// Constant for Derivative
 
 //Turning Tuning
 double actualturningKp = 0.0; // Constant for Proportion
@@ -123,10 +123,10 @@ double turnDerivative = 0.0;
 double turnPrev_error = 0.0;
 
 //Average Right Motor Position
-double AVGRMP;
+double AVGRMP = 0;
 
 //Average Left Motor Position
-double AVGLMP;
+double AVGLMP = 0;
 
 // All clear boolean that is used to let the code knom that its good to run the next movement
 bool AC = false;
@@ -163,6 +163,7 @@ void VEXcode_driver_task() {
 // Funtion that sets the value and moves the robot along its longitundinal axis
 double moveLong(double input)
 {
+  AC = false;
   double TV = input/(3.14159 * 104.775) * 360; // Targeted Value
   longLat = true;
   //Enables the math loop
@@ -173,7 +174,8 @@ double moveLong(double input)
 // the function that sets the distance to x drive side to side movement 
 double turn(double input)
 {
-  turninput = input;
+  AC = false;
+  turninput = input/100;
   Turn = true;
   // Enables the math loop
   swtch = true;
@@ -251,18 +253,18 @@ void onevent_getVar_4()
     double rightlateralMotorPower = ((Kp*rightError + Ki*rightIntegral + Kd * (rightError - rightPrev_error))/12);// Z@
     double leftlateralMotorPower = ((Kp*leftError + Ki*leftIntegral + Kd * (leftError - leftPrev_error))/12);// Z@
     
-    if (rightlateralMotorPower > double(10))
+    if (rightlateralMotorPower > double(10)) // Clamps the right motor power to 10 max
     
     {
       rightlateralMotorPower = 10.0;
     }
 
 
-    if (leftlateralMotorPower > double(10)) // Z@
+    if (leftlateralMotorPower > double(10)) // Clamps the left motor power to 10 max
     {
-      leftlateralMotorPower = 10.0;// Z@
+      leftlateralMotorPower = 10.0;
     }
-    if (turnV > double(10))
+    if (turnV > double(10)) // Clamps the turn motor power to 10 max
     {
       turnV = 10.0;
     }
@@ -274,13 +276,13 @@ void onevent_getVar_4()
 }
 int whenStarted2()
 {
-  while (swtch)
+  while (1==0)
   {
     actualturningV = actualturningKp*actualturningError +actualturningKi*actualturningIntegral + actualturningKd * (actualturningError - actualturningPrev_error);// Z@
     FrontRight.spin(forward, actualturningV, voltageUnits::volt);
     FrontLeft.spin(reverse, actualturningV, voltageUnits::volt);
-    BackRight.spin(forward, actualturningV, voltageUnits::volt);
-    BackLeft.spin(reverse, actualturningV, voltageUnits::volt);
+    BackRight.spin(reverse, actualturningV, voltageUnits::volt);
+    BackLeft.spin(forward, actualturningV, voltageUnits::volt);
   }
   return 0;
 }
@@ -294,7 +296,7 @@ void onevent_getVar_5()
     Controller1.Screen.setCursor(1,1);
     //printf(printToConsole_numberFormat(), static_cast<double>(turnError));
     Controller1.Screen.print(" ");
-    Controller1.Screen.print(turnV);
+    Controller1.Screen.print(turnError);
     
   }
 }// Z@
@@ -302,8 +304,9 @@ void onevent_getVar_5()
 
 void reset()// Event used to figure out when the PID has reached its destination
 {
+  waitUntil((50 > fabs(leftError) && fabs(rightError) < 50 && longLat || (turnError < 1 && Turn))); 
   //Uses a wait statement that waits for the error (dependant upon what movement is occurring) within a small enough margin before resetting.
-  waitUntil((.5 > fabs(rightlateralMotorPower) && fabs(leftlateralMotorPower) < 0.5 && longLat) || (fabs(turnV) < 1 && Turn));
+  //waitUntil((.5 > fabs(rightlateralMotorPower) && fabs(leftlateralMotorPower) < 0.5 && longLat) || (fabs(turnV) < 1 && Turn));
   //50 > fabs(leftError) && fabs(rightError) < 50 && longLat )); //|| (turninput != 0.0 && turnError < 1 && Turn)); 
   Brain.Screen.print(leftError);
   Brain.Screen.print(rightError);
@@ -347,7 +350,6 @@ void reset()// Event used to figure out when the PID has reached its destination
   AC = true;
 }
 
-
 // Main auton code
 
 int onauton_autonomous_0()
@@ -360,7 +362,7 @@ int onauton_autonomous_0()
   BackRight.setPosition(0, degrees);
 
   // Initial instruction: move 500mm forward
-  TV = moveLong(500.0);
+  TV = moveLong(-500.0);
 
   // Redundancy to make sure there is no interference
   // MAKE SURE: This code NEEDS has to be after the intital instruction, Otherwise the target value will not initalize properly
@@ -377,13 +379,17 @@ int onauton_autonomous_0()
 
   //This line below waits for function "reset" to finish through the use of an all clear boolean (true or false)
   waitUntil(AC);
-  
   //TV = moveLong(-200.0);
   //reset12.broadcast();
 
-  waitUntil(AC);
-  turn(-90);
   
+  //turn(-9);
+  //reset12.broadcast();
+  //waitUntil(AC);
+
+  TV = moveLong(-500.0);
+  reset12.broadcast();
+  waitUntil(AC);
   return 0;
 }
 // Z@
@@ -397,6 +403,8 @@ void VEXcode_auton_task() {
 
 }
 int main() {
+  Competition.drivercontrol(VEXcode_driver_task);
+  Competition.autonomous(VEXcode_auton_task);
   FrontLeft.setPosition(0, degrees);// Z@
   FrontRight.setPosition(0, degrees); // Z@
   BackLeft.setPosition(0, degrees); // Z@
@@ -409,8 +417,6 @@ int main() {
   getVar(onevent_getVar_5);
   reset12(reset);
   vex::competition::bStopTasksBetweenModes = false;
-  Competition.drivercontrol(VEXcode_driver_task);
-  Competition.autonomous(VEXcode_auton_task);
   swtch = false;
   swtch2 = true;
   vex::task ws1(whenStarted2);
