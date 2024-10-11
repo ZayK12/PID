@@ -107,8 +107,9 @@ double integral = 0.0; //
 double derivative = 0.0; // error - prev_error : 
 double averagerot = 0.0; //
 
-//getVar event is used to multithread the code
-event getVar = event();
+//The calculate event is used to update all the calculations and multiple instances of this event are used to allow for all the calculations to occur at one time.
+event calculate = event();
+
 //reset event is ued to reset all PID calculations.
 event reset12 = event();
 
@@ -164,10 +165,12 @@ void VEXcode_driver_task() {
 double moveLong(double input)
 {
   AC = false;
-  double TV = input/(3.14159 * 104.775) * 360; // Targeted Value
+  TV = input/(3.14159 * 104.775) * 360; // Sets the target value, the equation converts mm to degrees becuase thats what all the math is based off of.
   longLat = true;
   //Enables the math loop
   swtch = true;
+
+  //returns the updated target value
   return TV;
 }
 
@@ -185,73 +188,74 @@ double turn(double input)
 
 
 // Left calculation
-void onevent_getVar_0()
+void leftLatCalc()
 {
-  AVGLMP = FrontLeft.position(degrees) + BackLeft.position(degrees)/2;
-  (TV != 0.0) ? leftError = TV - AVGLMP : leftError = 0.0; // Z@
+  AVGLMP = FrontLeft.position(degrees) + BackLeft.position(degrees)/2; // Average rotation for the left side motors
+  (TV != 0.0) ? leftError = TV - AVGLMP : leftError = 0.0; // Shorthand if statement to see if the average rotation of both motors are equal to the target value, then sets the error to 0
   if (leftError == leftPrev_error)
   {
     leftIntegral = 0.0;
   }
-  leftIntegral += leftError; // Z@
-  leftPrev_error = leftError;
+  leftIntegral += leftError; // Updates the integral value
+  leftPrev_error = leftError; // Updates the Previous error value
 }
 
 // Right Calculation
 
-void onevent_getVar_1()
+void rightLatCalc()
 {
-  AVGRMP = FrontRight.position(degrees) + BackRight.position(degrees)/2; // Z@
-  (TV != 0.0) ? rightError = TV - AVGRMP : rightError = 0.0;// Z@
+  AVGRMP = FrontRight.position(degrees) + BackRight.position(degrees)/2; // Average rotation for the right side motors.
+  (TV != 0.0) ? rightError = TV - AVGRMP : rightError = 0.0;// Shorthand if statement to see if the average rotation of both motors are equal to the target value, then sets the error to 0
   if (rightError == rightPrev_error)
   {
     rightIntegral = 0.0;
     //AC = true; 
   }
-  rightIntegral += rightError;// Z@
-  rightPrev_error = rightError;
+  rightIntegral += rightError;// Updates the integral value
+  rightPrev_error = rightError;// Updates the Previous error value
 }
 #pragma endregion SIDPID
 
 //Turn Calculation, X-Drive side to side
 
-void onevent_getVar_2()
+void turnCalc()
 {
-  averagerot = (AVGRMP + AVGLMP/2);
-  (turninput != 0.0) ? turnError = (averagerot-turninput): turnError = 0.0;// Z@
-  if (turnError == turnPrev_error)// Z@
+  averagerot = (AVGRMP + AVGLMP/2); // Average rotation for the lefh side motors.
+  (turninput != 0.0) ? turnError = (averagerot-turninput): turnError = 0.0;// Shorthand if statement to see if the average rotation of both motors are equal to the target value, then sets the error to 0
+  if (turnError == turnPrev_error)// Resets integral value if the prev error and error both equal eachother
   {
     turnIntegral = 0.0;
     //AC = true;
   } 
-  turnIntegral += turnError;
-  turnPrev_error = turnError;
+  turnIntegral += turnError; // Updates the integral value 
+  turnPrev_error = turnError; // Updates the Previous error value
   
   // Z@
 }
 
 //Calculation used for X-Drive turning.
-void onevent_getVar_3()
+void xTurnCalc()
 {
-  turningrot = fabs((FrontRight.position(degrees)) + fabs(BackRight.position(degrees))/7.44); // Z@
-  (actualturning != 0.0) ? actualturning = (averagerot-actualturning): actualturningError = 0.0;// Z@
+  turningrot = fabs((FrontRight.position(degrees)) + fabs(BackRight.position(degrees))/7.44); // Uses the average of 2 motors to figure out where the x-drive is facing.
+  (actualturning != 0.0) ? actualturning = (turningrot-actualturning): actualturningError = 0.0;// Shorthand if statement to see if the average rotation of both motors are equal to the target value, then sets the error to 0
   if (actualturningError == actualturningPrev_error)
   {
     actualturningIntegral = 0.0;
   }
-  actualturningIntegral += actualturningError;// Z@
-  actualturningPrev_error = actualturningError;
+  actualturningIntegral += actualturningError;// Updates the integral value 
+  actualturningPrev_error = actualturningError;// Updates the Previous error value
 
 }
 
 //Final Calculation 
-void onevent_getVar_4()
+void theFinalCalcDown()
 {
   while (swtch) 
   {
+
     turnV = turnKp*turnError + turnKi*turnIntegral + turnKd * (turnError - turnPrev_error);
-    double rightlateralMotorPower = ((Kp*rightError + Ki*rightIntegral + Kd * (rightError - rightPrev_error))/12);// Z@
-    double leftlateralMotorPower = ((Kp*leftError + Ki*leftIntegral + Kd * (leftError - leftPrev_error))/12);// Z@
+    rightlateralMotorPower = ((Kp*rightError + Ki*rightIntegral + Kd * (rightError - rightPrev_error))/12);// Z@
+    leftlateralMotorPower = ((Kp*leftError + Ki*leftIntegral + Kd * (leftError - leftPrev_error))/12);// Z@
     
     if (rightlateralMotorPower > double(10)) // Clamps the right motor power to 10 max
     
@@ -272,9 +276,9 @@ void onevent_getVar_4()
     leftside.spin(forward, leftlateralMotorPower + turnV, voltageUnits::volt);// Z@
     rightside.spin(forward, rightlateralMotorPower - turnV, voltageUnits::volt);
   } 
-// Z@
+// THe calculation that allows for X-Drive turninc.
 }
-int whenStarted2()
+int actualTurningCalc()
 {
   while (1==0)
   {
@@ -287,16 +291,16 @@ int whenStarted2()
   return 0;
 }
 
-void onevent_getVar_5()
+void debugThingy()
 {
   while (swtch2)
   {
-    getVar.broadcast();
+    calculate.broadcast();
     Controller1.Screen.clearScreen();
     Controller1.Screen.setCursor(1,1);
     //printf(printToConsole_numberFormat(), static_cast<double>(turnError));
     Controller1.Screen.print(" ");
-    Controller1.Screen.print(turnError);
+    Controller1.Screen.print(rightlateralMotorPower);
     
   }
 }// Z@
@@ -367,7 +371,7 @@ int onauton_autonomous_0()
   // Redundancy to make sure there is no interference
   // MAKE SURE: This code NEEDS has to be after the intital instruction, Otherwise the target value will not initalize properly
   swtch = true; // Enabling math loop switch.
-  getVar.broadcast(); //Starts the broadcast loop. details on page: (insert page here)
+  calculate.broadcast(); //Starts the broadcast loop. details on page: (insert page here)
   Brain.Screen.print("Running!"); //Debugging: allows me to know that the auton code has ran.
 
   // broadcasting the reset
@@ -409,17 +413,17 @@ int main() {
   FrontRight.setPosition(0, degrees); // Z@
   BackLeft.setPosition(0, degrees); // Z@
   BackRight.setPosition(0, degrees);
-  getVar(onevent_getVar_0);
-  getVar(onevent_getVar_1);
-  getVar(onevent_getVar_2);
-  getVar(onevent_getVar_3);
-  getVar(onevent_getVar_4);
-  getVar(onevent_getVar_5);
+  calculate(leftLatCalc);
+  calculate(rightLatCalc);
+  calculate(turnCalc);
+  calculate(xTurnCalc);
+  calculate(theFinalCalcDown);
+  calculate(debugThingy);
   reset12(reset);
   vex::competition::bStopTasksBetweenModes = false;
   swtch = false;
   swtch2 = true;
-  vex::task ws1(whenStarted2);
+  vex::task ws1(actualTurningCalc);
 
 // Z@
 }
