@@ -169,7 +169,7 @@ double moveLong(double input)
   longLat = true;
   //Enables the math loop
   swtch = true;
-
+  Controller1.rumble("--");
   //returns the updated target value
   return TV;
 }
@@ -220,7 +220,7 @@ void rightLatCalc()
 
 void turnCalc()
 {
-  averagerot = (AVGRMP + AVGLMP/2); // Average rotation for the lefh side motors.
+  averagerot = (AVGRMP + AVGLMP/2); // Average rotation for the left side motors.
   (turninput != 0.0) ? turnError = (averagerot-turninput): turnError = 0.0;// Shorthand if statement to see if the average rotation of both motors are equal to the target value, then sets the error to 0
   if (turnError == turnPrev_error)// Resets integral value if the prev error and error both equal eachother
   {
@@ -237,7 +237,7 @@ void turnCalc()
 void xTurnCalc()
 {
   turningrot = fabs((FrontRight.position(degrees)) + fabs(BackRight.position(degrees))/7.44); // Uses the average of 2 motors to figure out where the x-drive is facing.
-  (actualturning != 0.0) ? actualturning = (turningrot-actualturning): actualturningError = 0.0;// Shorthand if statement to see if the average rotation of both motors are equal to the target value, then sets the error to 0
+  (actualturning != 0.0) ? actualturning = (averagerot-actualturning): actualturningError = 0.0;// Shorthand if statement to see if the average rotation of both motors are equal to the target value, then sets the error to 0
   if (actualturningError == actualturningPrev_error)
   {
     actualturningIntegral = 0.0;
@@ -263,14 +263,30 @@ void theFinalCalcDown()
       rightlateralMotorPower = 10.0;
     }
 
+    if (rightlateralMotorPower < double(-10)) // Clamps the right motor power to 10 max
+    {
+      rightlateralMotorPower = -10.0;
+    }
+
 
     if (leftlateralMotorPower > double(10)) // Clamps the left motor power to 10 max
     {
       leftlateralMotorPower = 10.0;
     }
+
+    if (leftlateralMotorPower < double(-10)) // Clamps the left motor power to 10 max
+    {
+      leftlateralMotorPower = -10.0;
+    }
+
+
     if (turnV > double(10)) // Clamps the turn motor power to 10 max
     {
       turnV = 10.0;
+    }
+    if (turnV < double(-10)) // Clamps the turn motor power to 10 max
+    {
+      turnV = -10.0;
     }
 
     leftside.spin(forward, leftlateralMotorPower + turnV, voltageUnits::volt);// Z@
@@ -301,22 +317,25 @@ void debugThingy()
     //printf(printToConsole_numberFormat(), static_cast<double>(turnError));
     Controller1.Screen.print(" ");
     Controller1.Screen.print(rightlateralMotorPower);
-    
+    Controller1.Screen.setCursor(2,2);
+    Controller1.Screen.print(" ");
+    Controller1.Screen.print(leftlateralMotorPower);
   }
 }// Z@
 
 
 void reset()// Event used to figure out when the PID has reached its destination
 {
-  waitUntil((50 > fabs(leftError) && fabs(rightError) < 50 && longLat || (turnError < 1 && Turn))); 
+  //waitUntil((50 > fabs(leftError) && fabs(rightError) < 50 && longLat || (turnError < 1 && Turn))); 
   //Uses a wait statement that waits for the error (dependant upon what movement is occurring) within a small enough margin before resetting.
-  //waitUntil((.5 > fabs(rightlateralMotorPower) && fabs(leftlateralMotorPower) < 0.5 && longLat) || (fabs(turnV) < 1 && Turn));
+  waitUntil((1.2 > fabs(rightlateralMotorPower) && fabs(leftlateralMotorPower) < 1.2 && longLat) || (fabs(turnV) < 1 && Turn));
   //50 > fabs(leftError) && fabs(rightError) < 50 && longLat )); //|| (turninput != 0.0 && turnError < 1 && Turn)); 
   Brain.Screen.print(leftError);
   Brain.Screen.print(rightError);
   Brain.Screen.print(longLat);
   //Lets the driver know that the reset has begun
   Controller1.Screen.print("AAAAA");
+  Controller1.rumble("-");
 
   //Disables the math loop so that the TV can be properly initalized
   swtch = false;
@@ -342,7 +361,9 @@ void reset()// Event used to figure out when the PID has reached its destination
   rightIntegral = 0.0;
   rightDerivative = 0.0;
   rightPrev_error = 0.0;
-
+  rightlateralMotorPower = 0;
+  leftlateralMotorPower = 0;
+  turnV = 0;
 
   // Resets what movement the PID is doing and gives the all clear for the next PID movement to begin
   longLat = false;
@@ -365,8 +386,8 @@ int onauton_autonomous_0()
   BackLeft.setPosition(0, degrees);
   BackRight.setPosition(0, degrees);
 
-  // Initial instruction: move 500mm forward
-  TV = moveLong(-500.0);
+  // Initial instruction
+  TV = moveLong(-1000.0);
 
   // Redundancy to make sure there is no interference
   // MAKE SURE: This code NEEDS has to be after the intital instruction, Otherwise the target value will not initalize properly
@@ -383,17 +404,16 @@ int onauton_autonomous_0()
 
   //This line below waits for function "reset" to finish through the use of an all clear boolean (true or false)
   waitUntil(AC);
-  //TV = moveLong(-200.0);
-  //reset12.broadcast();
-
   
-  //turn(-9);
-  //reset12.broadcast();
-  //waitUntil(AC);
-
-  TV = moveLong(-500.0);
+  turn(-100);
   reset12.broadcast();
   waitUntil(AC);
+
+/*
+  TV = moveLong(700.0);
+  reset12.broadcast();
+  waitUntil(AC);
+*/
   return 0;
 }
 // Z@
