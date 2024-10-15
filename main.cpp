@@ -77,7 +77,7 @@ double Kd = 0.0001;// Constant for Derivative
 
 //Turn Tuning
 
-double turnKp = 0.375; // Constant for Proportion
+double turnKp = 0.100; // Constant for Proportion
 double turnKi = 0.0001; // Constant for Integral
 double turnKd = 0.0001;// Constant for Derivative
 
@@ -169,7 +169,6 @@ double moveLong(double input)
   longLat = true;
   //Enables the math loop
   swtch = true;
-  Controller1.rumble("--");
   //returns the updated target value
   return TV;
 }
@@ -178,8 +177,10 @@ double moveLong(double input)
 double turn(double input)
 {
   AC = false;
-  turninput = input/100;
+  turninput = input;
   Turn = true;
+  Controller1.rumble("...");
+  Brain.Screen.print("Turn Code started");
   // Enables the math loop
   swtch = true;
   return 0;
@@ -220,7 +221,7 @@ void rightLatCalc()
 
 void turnCalc()
 {
-  averagerot = (AVGRMP + AVGLMP/2); // Average rotation for the left side motors.
+  averagerot = (AVGRMP + AVGLMP/2); // Average rotation, X drive side to side distance
   (turninput != 0.0) ? turnError = (averagerot-turninput): turnError = 0.0;// Shorthand if statement to see if the average rotation of both motors are equal to the target value, then sets the error to 0
   if (turnError == turnPrev_error)// Resets integral value if the prev error and error both equal eachother
   {
@@ -288,9 +289,12 @@ void theFinalCalcDown()
     {
       turnV = -10.0;
     }
-
-    leftside.spin(forward, leftlateralMotorPower + turnV, voltageUnits::volt);// Z@
-    rightside.spin(forward, rightlateralMotorPower - turnV, voltageUnits::volt);
+    FrontLeft.spin(forward, leftlateralMotorPower + turnV, voltageUnits::volt);
+    BackLeft.spin(forward, leftlateralMotorPower + turnV, voltageUnits::volt);
+    FrontRight.spin(forward, rightlateralMotorPower - turnV, voltageUnits::volt);
+    BackRight.spin(forward, rightlateralMotorPower - turnV, voltageUnits::volt);
+    //leftside.spin(forward, leftlateralMotorPower + turnV, voltageUnits::volt);// Z@
+    //rightside.spin(forward, rightlateralMotorPower - turnV, voltageUnits::volt);
   } 
 // THe calculation that allows for X-Drive turninc.
 }
@@ -299,10 +303,10 @@ int actualTurningCalc()
   while (1==0)
   {
     actualturningV = actualturningKp*actualturningError +actualturningKi*actualturningIntegral + actualturningKd * (actualturningError - actualturningPrev_error);// Z@
-    FrontRight.spin(forward, actualturningV, voltageUnits::volt);
-    FrontLeft.spin(reverse, actualturningV, voltageUnits::volt);
-    BackRight.spin(reverse, actualturningV, voltageUnits::volt);
-    BackLeft.spin(forward, actualturningV, voltageUnits::volt);
+    //FrontRight.spin(forward, actualturningV, voltageUnits::volt);
+    //FrontLeft.spin(reverse, actualturningV, voltageUnits::volt);
+    //BackRight.spin(reverse, actualturningV, voltageUnits::volt);
+    //BackLeft.spin(forward, actualturningV, voltageUnits::volt);
   }
   return 0;
 }
@@ -316,7 +320,7 @@ void debugThingy()
     Controller1.Screen.setCursor(1,1);
     //printf(printToConsole_numberFormat(), static_cast<double>(turnError));
     Controller1.Screen.print(" ");
-    Controller1.Screen.print(rightlateralMotorPower);
+    Controller1.Screen.print(turnV);
     Controller1.Screen.setCursor(2,2);
     Controller1.Screen.print(" ");
     Controller1.Screen.print(leftlateralMotorPower);
@@ -330,8 +334,8 @@ void reset()// Event used to figure out when the PID has reached its destination
   //Uses a wait statement that waits for the error (dependant upon what movement is occurring) within a small enough margin before resetting.
   waitUntil((1.2 > fabs(rightlateralMotorPower) && fabs(leftlateralMotorPower) < 1.2 && longLat) || (fabs(turnV) < 1 && Turn));
   //50 > fabs(leftError) && fabs(rightError) < 50 && longLat )); //|| (turninput != 0.0 && turnError < 1 && Turn)); 
-  Brain.Screen.print(leftError);
-  Brain.Screen.print(rightError);
+  //Brain.Screen.print(leftError);
+  //Brain.Screen.print(rightError);
   Brain.Screen.print(longLat);
   //Lets the driver know that the reset has begun
   Controller1.Screen.print("AAAAA");
@@ -341,29 +345,46 @@ void reset()// Event used to figure out when the PID has reached its destination
   swtch = false;
 
   //stops all motors to prevent any interference
+  FrontRight.stop();
+  FrontLeft.stop();
+  BackRight.stop();
+  BackLeft.stop();
   leftside.stop();
   rightside.stop();
+  FrontLeft.setPosition(1, degrees);// Z@
+  FrontRight.setPosition(1, degrees); // Z@
+  BackLeft.setPosition(1, degrees); // Z@
+  BackRight.setPosition(1, degrees);
 
   // Zeroing all PID values
   TV = 0.0;
   turninput = 0.0;
+  averagerot = 0.0;
   actualturning = 0.0;
   actualturningV = 0.0;
   actualturningIntegral = 0.0;
   actualturningDerivative = 0.0;
   actualturningPrev_error = 0.0;
   actualturningError = 0.0;
+
   leftError = 0.0;
   leftIntegral = 0.0;
   leftDerivative = 0.0;
   leftPrev_error = 0.0;
+
   rightError = 0.0;
   rightIntegral = 0.0;
   rightDerivative = 0.0;
   rightPrev_error = 0.0;
   rightlateralMotorPower = 0;
   leftlateralMotorPower = 0;
+
   turnV = 0;
+  turnError = .1; 
+  turnIntegral = 0.0;
+  turnDerivative = 0.0;
+  turnPrev_error = 0.0;
+  averagerot = 0.0;
 
   // Resets what movement the PID is doing and gives the all clear for the next PID movement to begin
   longLat = false;
@@ -404,10 +425,22 @@ int onauton_autonomous_0()
 
   //This line below waits for function "reset" to finish through the use of an all clear boolean (true or false)
   waitUntil(AC);
-  
-  turn(-100);
+  turn(360);
+  wait(200, msec);
   reset12.broadcast();
   waitUntil(AC);
+
+  moveLong(1000.0);
+  wait(200, msec);
+  reset12.broadcast();
+  waitUntil(AC);
+
+  turn(-360.0);
+  wait(200, msec);
+  reset12.broadcast();
+  waitUntil(AC);
+
+
 
 /*
   TV = moveLong(700.0);
