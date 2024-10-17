@@ -134,6 +134,7 @@ bool AC = false;
 //Variables to track what movement method is in use
 bool longLat = false;
 bool Turn = false;
+bool TurnX = false;
 
 //actual turning is for x-drive turning as turn causes side to side movement
 double actualturningV = 0.0; //Voltage to give motors
@@ -150,6 +151,14 @@ double turningrot = 0.0;
 
 int ondriver_drivercontrol_0() 
 {
+  FrontRight.setVelocity((((Controller1.Axis3.position()*-1) + Controller1.Axis1.position()) + Controller1.Axis4.position()) , percent);
+  FrontLeft.setVelocity((((Controller1.Axis3.position()*-1) - Controller1.Axis1.position()) - Controller1.Axis4.position()), percent);
+  BackRight.setVelocity((((Controller1.Axis3.position()*-1) - Controller1.Axis1.position()) + Controller1.Axis4.position()), percent);
+  BackLeft.setVelocity((((Controller1.Axis3.position()*-1) + Controller1.Axis1.position()) - Controller1.Axis4.position()), percent);
+  FrontRight.spin(forward);
+  FrontLeft.spin(forward);
+  BackRight.spin(forward);
+  BackLeft.spin(forward);
   return 0;
 }
 
@@ -184,6 +193,15 @@ double turn(double input)
   // Enables the math loop
   swtch = true;
   return 0;
+}
+double xTurn(double input)
+{
+  AC = false;
+  actualturning = input;
+  TurnX = true;
+  //Enables the math loop
+  swtch = true;
+  return actualturning;
 }
 #pragma region SIDPID
 
@@ -439,7 +457,8 @@ int onauton_autonomous_0()
   wait(200, msec);
   reset12.broadcast();
   waitUntil(AC);
-
+  
+  xTurn(50);
 
 
 /*
